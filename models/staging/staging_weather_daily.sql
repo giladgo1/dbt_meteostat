@@ -22,4 +22,4 @@ daily_flattened AS (
 							,(json_data ->> 'tsun')::NUMERIC::INTEGER AS sun_minutes
 						FROM daily_raw
 )
-SELECT * FROM daily_flattened;
+SELECT * FROM daily_flattened
