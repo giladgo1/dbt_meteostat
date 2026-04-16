@@ -1,5 +1,5 @@
 version: 2
-  sources:
+sources:
   
   - name: weather_data
     schema: s_giladgotesman
