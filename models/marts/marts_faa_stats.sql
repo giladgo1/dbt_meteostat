@@ -1,45 +1,69 @@
-SELECT * FROM prep_flights;
---airport as departure
-SELECT origin, 
-count(DISTINCT dest)AS nuniqe_to,
-count(sched_dep_time)AS dep_planned
-FROM prep_flights
-GROUP BY origin;
+WITH departures AS (
+		-- airport as departure
+		SELECT origin, 
+			COUNT(DISTINCT dest) AS nunique_to,
+			COUNT(sched_dep_time) AS dep_planned,
+			SUM(cancelled) AS dep_cancelled,
+			SUM(diverted) AS dep_diverted,
+		--	COUNT(sched_dep_time) - SUM(cancelled) AS dep_n_flights_calc,
+			SUM(CASE WHEN cancelled = 0 THEN 1 END) AS dep_n_flights_calc,
+			COUNT(DISTINCT tail_number) AS nunique_tail_number_from,
+			COUNT(DISTINCT airline) AS nunique_airline_from
+		FROM {{ref('prep_flights')}}
+		GROUP BY origin
+),
+arrivals AS(
+		-- airport as destination
+		SELECT dest, 
+			COUNT(DISTINCT origin) AS nunique_from,
+			COUNT(sched_arr_time) AS arr_planned,
+			SUM(cancelled) AS arr_cancelled,
+			SUM(diverted) AS arr_diverted,
+			--	COUNT(sched_arr_time) - SUM(cancelled) AS arr_n_flights_calc,
+			SUM(CASE WHEN cancelled = 0 THEN 1 END) AS arr_n_flights_calc,
+			COUNT(DISTINCT tail_number) AS nunique_tail_number_to,
+			COUNT(DISTINCT airline) AS nunique_airline_to
+		FROM {{ref('prep_flights')}}
+		GROUP BY dest
+),
+total_stats AS (
+		SELECT d.origin AS airport_code,
+				nunique_to,
+				nunique_from,
+				d.dep_planned + a.arr_planned AS total_planned,
+				d.dep_cancelled + a.arr_cancelled AS total_cancelled,
+				d.dep_diverted + a.arr_diverted AS total_diverted,
+				d.dep_n_flights_calc + a.arr_n_flights_calc AS total_n_flights_calc,
+				a.nunique_tail_number_to,
+				d.nunique_tail_number_from,
+				a.nunique_airline_to,
+				d.nunique_airline_from
+		FROM departures d
+		JOIN arrivals a
+		ON d.origin = a.dest
+)
+SELECT ap.city, ap.country, ap.name, ts.*
+FROM total_stats ts
+JOIN {{ref('prep_airports')}} ap
+ON ts.airport_code = ap.faa
 
---airport as destination
-SELECT origin, 
-count(DISTINCT origin)AS nuniqe_from,
-count(sched_arr_time)AS arr_planned
-FROM prep_flights
-GROUP BY dest;
+--5.1 Airport Stats
+--In a table mart_faa_stats.sql we want to see for each airport over all time:
 
---#### 5.3 Flight Route Stats incl. Weather
---In a table `mart_selected_faa_stats_weather.sql` we want to see **for each airport daily**:
+--unique number of departures connections
 
--- only the airports we collected the weather data for
+--unique number of arrival connections
 
--- unique number of departures connections
+--how many flight were planned in total (departures & arrivals)
 
--- unique number of arrival connections
+--how many flights were canceled in total (departures & arrivals)
 
--- how many flight were planned in total (departures & arrivals)
+--how many flights were diverted in total (departures & arrivals)
 
--- how many flights were canceled in total (departures & arrivals)
+--how many flights actually occured in total (departures & arrivals)
 
--- how many flights were diverted in total (departures & arrivals)
+--(optional) how many unique airplanes travelled on average
 
--- how many flights actually occured in total (departures & arrivals)
+--(optional) how many unique airlines were in service on average
 
--- *(optional) how many unique airplanes travelled on average*
-
--- *(optional) how many unique airlines were in service  on average* 
-
--- (optional) add city, country and name of the airport
-
--- daily min temperature
--- daily max temperature
--- daily precipitation 
--- daily snow fall
--- daily average wind direction 
--- daily average wind speed
--- daily wnd peakgust
+--add city, country and name of the airport
