@@ -12,4 +12,5 @@ sources:
     tables:
       - name: flights
       - name: airports
-      - name: regions
+      - name: 
+ 
